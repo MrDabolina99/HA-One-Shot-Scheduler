@@ -9,6 +9,23 @@ from datetime import datetime
 
 app = Flask(__name__)
 
+# ----- Ingress fix -----
+class ReverseProxied:
+    def __init__(self, app):
+        self.app = app
+
+    def __call__(self, environ, start_response):
+        script_name = environ.get('HTTP_X_INGRESS_PATH', '')
+        if script_name:
+            environ['SCRIPT_NAME'] = script_name
+            path_info = environ.get('PATH_INFO', '')
+            if path_info.startswith(script_name):
+                environ['PATH_INFO'] = path_info[len(script_name):]
+        return self.app(environ, start_response)
+
+app.wsgi_app = ReverseProxied(app.wsgi_app)
+# -----------------------
+
 # ----- Config -----
 DATA_FILE = "/data/events.json"
 HA_API    = "http://supervisor/core/api"
@@ -32,7 +49,6 @@ def save_events(events):
         json.dump(events, f, indent=2)
 
 def call_ha_service(action, entity_id):
-    """Calls a Home Assistant service like homeassistant.turn_on"""
     domain, service = action.split(".", 1)
     headers = {
         "Authorization": f"Bearer {TOKEN}",
@@ -51,18 +67,15 @@ def call_ha_service(action, entity_id):
         print(f"[Scheduler] Error calling HA API: {e}")
 
 def execute_event(event_id):
-    """Called by APScheduler when the event fires."""
     events = load_events()
     event = next((e for e in events if e["id"] == event_id), None)
     if event:
         call_ha_service(event["action"], event["entity_id"])
-        # Remove from list after execution
         events = [e for e in events if e["id"] != event_id]
         save_events(events)
         print(f"[Scheduler] Event '{event['description']}' completed and removed.")
 
 def schedule_event(event):
-    """Add an event to the APScheduler."""
     run_time = datetime.fromisoformat(f"{event['date']}T{event['time']}")
     if run_time <= datetime.now():
         print(f"[Scheduler] Skipping past event: {event['description']}")
@@ -76,7 +89,6 @@ def schedule_event(event):
     )
     print(f"[Scheduler] Scheduled '{event['description']}' for {run_time}")
 
-# Restore scheduled jobs on startup
 for ev in load_events():
     try:
         schedule_event(ev)
@@ -116,6 +128,5 @@ def delete_event(event_id):
         pass
     return redirect(url_for("index"))
 
-# ----- Run -----
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8099)
