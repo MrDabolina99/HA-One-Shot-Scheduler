@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>One-Time Scheduler</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      padding: 24px;
+    }
+    h1 { font-size: 1.6rem; margin-bottom: 24px; color: #1a1a2e; }
+    h2 { font-size: 1.1rem; margin-bottom: 12px; color: #444; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 24px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .form-grid .full { grid-column: 1 / -1; }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #4a90e2;
+    }
+
+    button[type="submit"] {
+      background: #4a90e2;
+      color: white;
+      border: none;
+      padding: 11px 28px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+    }
+    button[type="submit"]:hover { background: #357abd; }
+
+    .event-list { list-style: none; }
+    .event-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-radius: 8px;
+      background: #f8f9fb;
+      margin-bottom: 8px;
+      border-left: 4px solid #4a90e2;
+    }
+    .event-info .desc  { font-weight: 600; font-size: 1rem; }
+    .event-info .meta  { font-size: 0.85rem; color: #777; margin-top: 2px; }
+    .event-info .entity { font-size: 0.85rem; color: #555; }
+
+    .delete-btn {
+      background: none;
+      border: 1.5px solid #e74c3c;
+      color: #e74c3c;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .delete-btn:hover { background: #e74c3c; color: white; }
+
+    .empty { color: #aaa; font-size: 0.95rem; padding: 12px 0; }
+
+    .action-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-left: 6px;
+    }
+    .on  { background: #d4edda; color: #155724; }
+    .off { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+
+  <h1>📅 One-Time Scheduler</h1>
+
+  <!-- Add Event Form -->
+  <div class="card">
+    <h2>Add New Event</h2>
+    <form action="/add" method="post">
+      <div class="form-grid">
+        <div class="full">
+          <label>Description</label>
+          <input type="text" name="description" placeholder="Turn on kitchen lamp" required />
+        </div>
+        <div>
+          <label>Entity ID</label>
+          <input type="text" name="entity_id" placeholder="light.kitchen" required />
+        </div>
+        <div>
+          <label>Action</label>
+          <select name="action" required>
+            <option value="homeassistant.turn_on">Turn On</option>
+            <option value="homeassistant.turn_off">Turn Off</option>
+            <option value="homeassistant.toggle">Toggle</option>
+          </select>
+        </div>
+        <div>
+          <label>Date</label>
+          <input type="date" name="date" required />
+        </div>
+        <div>
+          <label>Time</label>
+          <input type="time" name="time" required />
+        </div>
+      </div>
+      <button type="submit">+ Schedule Event</button>
+    </form>
+  </div>
+
+  <!-- Scheduled Events -->
+  <div class="card">
+    <h2>Scheduled Events</h2>
+    {% if events %}
+      <ul class="event-list">
+        {% for ev in events %}
+        <li class="event-item">
+          <div class="event-info">
+            <div class="desc">
+              {{ ev.description }}
+              <span class="action-badge {{ 'on' if 'turn_on' in ev.action else ('off' if 'turn_off' in ev.action else 'on') }}">
+                {{ ev.action.split('.')[1].replace('_', ' ') }}
+              </span>
+            </div>
+            <div class="entity">🏠 {{ ev.entity_id }}</div>
+            <div class="meta">🗓 {{ ev.date }} at {{ ev.time }}</div>
+          </div>
+          <a href="/delete/{{ ev.id }}" class="delete-btn">Delete</a>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">No events scheduled yet. Add one above!</p>
+    {% endif %}
+  </div>
+
+</body>
+</html>
